@@ -1,11 +1,16 @@
-var CACHE_STATIC = 'pre-cache-v1';
-var CACHE_DYNAMIC = 'dynamic-v1';
+importScripts('/assets/js/idb.js');
+importScripts('/assets/js/db.js');
+
+var CACHE_STATIC = 'pre-cache-v22';
+var CACHE_DYNAMIC = 'dynamic-cache-v6';
 
 // pre-cache
 var STATIC_FILES = [
   '/',
   '/index.html',
   '/assets/js/index.js',
+  '/assets/js/idb.js',
+  '/assets/js/db.js',
   '/assets/css/index.css',
   '/assets/images/icon-72x72.png',
   'https://fonts.googleapis.com/css?family=Roboto:400,700',
@@ -14,23 +19,19 @@ var STATIC_FILES = [
 ];
 
 self.addEventListener('install', function (event) {
-  console.log('Installing Service Worker event');
   event.waitUntil(
     caches.open(CACHE_STATIC).then(function (cache) {
-      console.log('Pre-cache');
       return cache.addAll(STATIC_FILES);
     })
   );
 });
 
 self.addEventListener('activate', function (event) {
-  console.log('Activate service worker event');
   event.waitUntil(
     caches.keys().then(function (keyList) {
       return Promise.all(
         keyList.map(function (key) {
           if (key !== CACHE_STATIC && key !== CACHE_DYNAMIC) {
-            console.log('Removing old cache.', key);
             return caches.delete(key);
           }
         })
@@ -41,23 +42,33 @@ self.addEventListener('activate', function (event) {
 });
 
 self.addEventListener('fetch', function (event) {
-  console.log('Intercept fetch event');
-
-  event.respondWith(
-    caches.match(event.request).then(function (res) {
-      console.log(res);
-
-      if (res) {
-        return res;
-      } else {
-        return fetch(event.request).then(function (resOnline) {
-          console.log('fetch online', resOnline);
-          return caches.open(CACHE_DYNAMIC).then(function (cache) {
-            cache.put(event.request.url, resOnline.clone());
-            return resOnline;
+  var omdbApi = 'http://www.omdbapi.com/?apikey=8758472a';
+  if (event.request.url.indexOf(omdbApi) > -1) {
+    event.respondWith(
+      fetch(event.request.url).then(function (res) {
+        var _res = res.clone();
+        _res.json().then(function (data) {
+          data.Search.forEach(function (item) {
+            writeData('movies', item);
           });
         });
-      }
-    })
-  );
+        return res;
+      })
+    );
+  } else {
+    event.respondWith(
+      caches.match(event.request).then(function (res) {
+        if (res) {
+          return res;
+        } else {
+          return fetch(event.request).then(function (resOnline) {
+            return caches.open(CACHE_DYNAMIC).then(function (cache) {
+              cache.put(event.request.url, resOnline.clone());
+              return resOnline;
+            });
+          });
+        }
+      })
+    );
+  }
 });

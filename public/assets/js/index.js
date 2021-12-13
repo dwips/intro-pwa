@@ -1,21 +1,48 @@
 window.addEventListener('load', function () {
-  console.log('on load');
-  getMovies('star wars');
+  initFetchMovie('star wars');
   onSearchChange();
-  registerSw();
 });
 
-function onSearchChange() {
-  var formElm = document.getElementById('search');
-  formElm.addEventListener('submit', function (e) {
-    e.preventDefault();
-
-    var formData = new FormData(this);
-    getMovies(formData.get('search'));
-  });
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/serviceWorker.js')
+    .then(function () {
+      console.log('Service worker registered!');
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
 }
 
-var omdbApi = 'http://www.omdbapi.com?apikey=8758472a';
+var omdbApi = 'http://www.omdbapi.com/?apikey=8758472a';
+
+function initFetchMovie(search) {
+  var searchUrl = omdbApi;
+
+  if (search) {
+    searchUrl = omdbApi + '&s=' + search;
+  }
+
+  var isNetworkDataReceived = false;
+
+  fetch(searchUrl)
+    .then(function (res) {
+      return res.json();
+    })
+    .then(function (res) {
+      isNetworkDataReceived = true;
+      createListMovie(res.Search);
+    });
+
+  if ('indexedDB' in window) {
+    readData('movies').then(function (res) {
+      if (!isNetworkDataReceived) {
+        createListMovie(res);
+      }
+    });
+  }
+}
+
 function getMovies(search) {
   var searchUrl = omdbApi;
 
@@ -30,6 +57,16 @@ function getMovies(search) {
     .then(function (res) {
       createListMovie(res.Search);
     });
+}
+
+function onSearchChange() {
+  var formElm = document.getElementById('search');
+  formElm.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    var formData = new FormData(this);
+    getMovies(formData.get('search'));
+  });
 }
 
 function createListMovie(data) {
@@ -62,18 +99,5 @@ function createListMovie(data) {
     });
   } catch (error) {
     console.log(error);
-  }
-}
-
-function registerSw() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker
-      .register('/serviceWorker.js')
-      .then(function () {
-        console.log('Service worker registered!');
-      })
-      .catch(function (err) {
-        console.log(err);
-      });
   }
 }

@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "http-server -p 4001"
+    "start": "http-server -p 4003"
   },
   "author": "",
   "license": "ISC",
